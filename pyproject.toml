@@ -1,0 +1,20 @@
+[tool.poetry]
+name = "evap-or-ac"
+version = "0.0.1"
+description = "Notify whether today is a good day to use an evaporative cooler or air conditioning based on user specification along with weather, air quality, and other data."
+authors = ["d33bs"]
+license = "Apache License 2.0"
+
+[tool.poetry.dependencies]
+python = "^3.9"
+
+[tool.poetry.dev-dependencies]
+bandit = "^1.7.4"
+pylint = "^2.14.1"
+pytest = "^7.1.2"
+black = "^22.3.0"
+isort = "^5.10.1"
+
+[build-system]
+requires = ["poetry-core>=1.0.0"]
+build-backend = "poetry.core.masonry.api"
