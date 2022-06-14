@@ -10,7 +10,7 @@ dagger.#Plan & {
 	client: {
 		filesystem: {
 			"./": read: contents:             dagger.#FS
-			"./src": write: contents:         actions.clean.black.export.directories."/workdir/src"
+			"./evap_or_ac": write: contents:  actions.clean.black.export.directories."/workdir/evap_or_ac"
 			"./tests": write: contents:       actions.clean.black.export.directories."/workdir/tests"
 			"./project.cue": write: contents: actions.clean.cue.export.files."/workdir/project.cue"
 		}
@@ -112,7 +112,7 @@ dagger.#Plan & {
 				workdir: "/workdir"
 				command: {
 					name: "poetry"
-					args: ["run", "isort", "src/", "tests/"]
+					args: ["run", "isort", "evap_or_ac/", "tests/"]
 				}
 			}
 			// code style formatting with black
@@ -121,12 +121,12 @@ dagger.#Plan & {
 				workdir: "/workdir"
 				command: {
 					name: "poetry"
-					args: ["run", "black", "src/", "tests/"]
+					args: ["run", "black", "evap_or_ac/", "tests/"]
 				}
 				export: {
 					directories: {
-						"/workdir/src":   _
-						"/workdir/tests": _
+						"/workdir/evap_or_ac": _
+						"/workdir/tests":      _
 					}
 				}
 			}
@@ -151,7 +151,7 @@ dagger.#Plan & {
 				workdir: "/workdir"
 				command: {
 					name: "poetry"
-					args: ["run", "mypy", "--ignore-missing-imports", "src/"]
+					args: ["run", "mypy", "--ignore-missing-imports", "evap_or_ac/"]
 				}
 			}
 			// isort (imports) formatting check
@@ -160,7 +160,7 @@ dagger.#Plan & {
 				workdir: "/workdir"
 				command: {
 					name: "poetry"
-					args: ["run", "isort", "--check", "--diff src/", "tests/"]
+					args: ["run", "isort", "--check", "--diff evap_or_ac/", "tests/"]
 				}
 			}
 			// black formatting check
@@ -169,7 +169,7 @@ dagger.#Plan & {
 				workdir: "/workdir"
 				command: {
 					name: "poetry"
-					args: ["run", "black", "--check", "src/", "tests/"]
+					args: ["run", "black", "--check", "evap_or_ac/", "tests/"]
 				}
 			}
 			// pylint checks
@@ -178,7 +178,7 @@ dagger.#Plan & {
 				workdir: "/workdir"
 				command: {
 					name: "poetry"
-					args: ["run", "pylint", "src/", "tests/"]
+					args: ["run", "pylint", "evap_or_ac/", "tests/"]
 				}
 			}
 			// bandit security vulnerabilities check
@@ -187,7 +187,7 @@ dagger.#Plan & {
 				workdir: "/workdir"
 				command: {
 					name: "poetry"
-					args: ["run", "bandit", "-r", "src/"]
+					args: ["run", "bandit", "-r", "evap_or_ac/"]
 				}
 			}
 		}
