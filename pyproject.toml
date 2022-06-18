@@ -9,6 +9,7 @@ license = "Apache License 2.0"
 python = "^3.9"
 pyairnow = "^1.1.0"
 asyncio = "^3.4.3"
+noaa-sdk = "^0.1.21"
 
 [tool.poetry.dev-dependencies]
 bandit = "^1.7.4"

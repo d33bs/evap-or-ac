@@ -1,8 +1,10 @@
 """ Core of Evap_or_AC """
 import asyncio
 import os
+from datetime import datetime
 from typing import Dict, List, Optional
 
+from noaa_sdk import NOAA
 from pyairnow import WebServiceAPI as airnow
 
 
@@ -17,10 +19,12 @@ class EvapOrAC:
     ) -> None:
         zipcode = os.environ.get("ZIPCODE", zipcode)
         airnow_key = os.environ.get("AIRNOW_KEY", airnow_key)
+        self.aqi_threshold = aqi_threshold
         self.aqi = self.get_aqi(zipcode, airnow_key)
-        self.answer = self.get_answer(self.aqi, aqi_threshold)
+        self.noaa_weather = self.get_noaa_weather(zipcode)
+        self.answer = self.get_answer()
 
-    def get_answer(self, aqi: List[Dict], aqi_threshold: int) -> Dict:
+    def get_answer(self) -> Dict:
         """
         Provide answer to question: Would it be better to use an
         evaporative cooler or air conditioning?
@@ -28,10 +32,19 @@ class EvapOrAC:
 
         # check whether there are AQI greater than the provided threshold.
         # if there are any above this level, we return air conditioning.
-        if len([x for x in aqi if x["AQI"] > aqi_threshold]) > 0:
+        if len([x for x in self.aqi if x["AQI"] > self.aqi_threshold]) > 0:
             return {
                 "answer": "Air Conditioning",
-                "why": f"An AQI greater than threshold {aqi_threshold} was found.",
+                "why": f"An AQI greater than threshold {self.aqi_threshold} was found.",
+            }
+
+        # check weather we have a temperature sometime today which is above
+        # or equal to 105, a temperature which will mean it's unlikely evap
+        # cooling will be effective
+        if len([x for x in self.noaa_weather if x["temperature"] >= 105]) > 0:
+            return {
+                "answer": "Air Conditioning",
+                "why": f"A daily temperature above 105 F was discovered in the weather forecast",
             }
 
         return {
@@ -50,3 +63,15 @@ class EvapOrAC:
                 distance=30,
             )
         )
+
+    def get_noaa_weather(self, zipcode: str) -> List[Dict]:
+        """
+        Get NOAA weather data using zipcode
+        """
+
+        today = datetime.today().strftime("%Y-%m-%d")
+        return [
+            item
+            for item in NOAA().get_forecasts(zipcode, "US")
+            if today in item["endTime"]
+        ]
