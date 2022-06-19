@@ -5,6 +5,7 @@ from datetime import datetime
 from typing import Dict, List, Optional
 
 from noaa_sdk import NOAA
+import psychrolib
 from pyairnow import WebServiceAPI as airnow
 
 
@@ -25,6 +26,7 @@ class EvapOrAC:
         self.noaa_avg_relhumidity = self.get_noaa_today_avg_value(
             item_name="relativeHumidity"
         )
+        self.avg_wet_bulb_temperature = self.get_avg_wet_bulb_temperature()
         self.noaa_avg_temperature = self.get_noaa_today_avg_value(
             item_name="temperature"
         )
@@ -79,7 +81,7 @@ class EvapOrAC:
             postal_code=zipcode, country="US", type="forecastGridData"
         )
 
-    def get_noaa_today_avg_value(self, item_name: str) -> None:
+    def get_noaa_today_avg_value(self, item_name: str) -> float:
         """
         Gets today's average relative humidity from NOAA weather data
         """
@@ -89,3 +91,36 @@ class EvapOrAC:
             x["value"] for x in result[item_name]["values"] if today in x["validTime"]
         ]
         return sum(vals) / len(vals)
+
+    def get_avg_temp_drop_achievable(self) -> float:
+        """
+        Determine avg temp drop achievable given weather data.
+
+        Use the following algorithm:
+            SAT = e * (TDB - TWB) - (TDB)
+
+        Based on:
+            e = (TDB - SAT) / (TDB - TWB)
+
+        Where:
+            e = the cooling effectiveness of the cooler
+            TDB = the outdoor dry-bulb temperature
+            TWB = the outdoor wet-bulb temperature
+            SAT = the supply air temperature leaving the evaporative cooler
+            Note. TDB - TWB = the wet-bulb depression
+
+        Source: https://basc.pnnl.gov/resource-guides/evaporative-cooling-systems#edit-group-description
+        """
+
+        return
+
+    def get_avg_wet_bulb_temperature(self) -> float:
+        """
+        Gets the wet bulb temperature based on weather data.
+        """
+
+        return psychrolib.GetTWetBulbFromRelHum(
+            TDryBulb=self.noaa_avg_temperature,
+            RelHum=self.noaa_avg_relhumidity,
+            Pressure=1,
+        )
