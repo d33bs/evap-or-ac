@@ -22,6 +22,12 @@ class EvapOrAC:
         self.aqi_threshold = aqi_threshold
         self.aqi = self.get_aqi(zipcode, airnow_key)
         self.noaa_weather = self.get_noaa_weather(zipcode)
+        self.noaa_avg_relhumidity = self.get_noaa_today_avg_value(
+            item_name="relativeHumidity"
+        )
+        self.noaa_avg_temperature = self.get_noaa_today_avg_value(
+            item_name="temperature"
+        )
         self.answer = self.get_answer()
 
     def get_answer(self) -> Dict:
@@ -69,9 +75,17 @@ class EvapOrAC:
         Get NOAA weather data using zipcode
         """
 
+        return NOAA().get_forecasts(
+            postal_code=zipcode, country="US", type="forecastGridData"
+        )
+
+    def get_noaa_today_avg_value(self, item_name: str) -> None:
+        """
+        Gets today's average relative humidity from NOAA weather data
+        """
+
         today = datetime.today().strftime("%Y-%m-%d")
-        return [
-            item
-            for item in NOAA().get_forecasts(zipcode, "US")
-            if today in item["endTime"]
+        vals = [
+            x["value"] for x in result[item_name]["values"] if today in x["validTime"]
         ]
+        return sum(vals) / len(vals)
