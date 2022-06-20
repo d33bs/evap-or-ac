@@ -11,6 +11,7 @@ pyairnow = "^1.1.0"
 asyncio = "^3.4.3"
 noaa-sdk = "^0.1.21"
 PsychroLib = "^2.5.0"
+requests = "^2.28.0"
 
 [tool.poetry.dev-dependencies]
 bandit = "^1.7.4"

@@ -22,6 +22,8 @@ class EvapOrAC:
         airnow_key = os.environ.get("AIRNOW_KEY", airnow_key)
         self.aqi_threshold = aqi_threshold
         self.aqi = self.get_aqi(zipcode, airnow_key)
+        self.altitude = self.get_altitude()
+        self.atmospheric_pressure = self.get_atmospheric_pressure()
         self.noaa_weather = self.get_noaa_weather(zipcode)
         self.noaa_avg_relhumidity = self.get_noaa_today_avg_value(
             item_name="relativeHumidity"
@@ -71,6 +73,40 @@ class EvapOrAC:
                 distance=30,
             )
         )
+
+    def get_altitude(self) -> float:
+        """
+        Get the altitude based on the relative latitude and longitude returned
+        from AQI request. Utilizes Open Elevation API.
+
+        https://github.com/Jorl17/open-elevation/blob/master/docs/api.md
+        """
+        lat = self.aqi[0]["Latitude"]
+        lon = self.aqi[0]["Longitude"]
+
+        return float(
+            requests.get(
+                "https://api.open-elevation.com/api/v1/lookup?locations={latitude},{longitude}"
+            ).json()["results"][0]["elevation"]
+        )
+
+    def get_atmospheric_pressure(self) -> dict:
+        """
+        Determine atmospheric pressure using barometric formula.
+
+        https://en.wikipedia.org/wiki/Atmospheric_pressure
+        """
+
+        # in hPa
+        p = 101325 * (
+            1 - ((0.00976 * self.altitude) / 288.16)
+            ^ ((9.80665 * 0.02896968)) / (8.314462618 * 0.00976)
+        )
+
+        # to psi
+        psi = p * 0.014503773800722
+
+        return psi
 
     def get_noaa_weather(self, zipcode: str) -> List[Dict]:
         """
@@ -122,5 +158,5 @@ class EvapOrAC:
         return psychrolib.GetTWetBulbFromRelHum(
             TDryBulb=self.noaa_avg_temperature,
             RelHum=self.noaa_avg_relhumidity,
-            Pressure=1,
+            Pressure=self.atmospheric_pressure,
         )
