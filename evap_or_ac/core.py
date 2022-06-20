@@ -86,7 +86,7 @@ class EvapOrAC:
 
         return float(
             requests.get(
-                "https://api.open-elevation.com/api/v1/lookup?locations={latitude},{longitude}"
+                f"https://api.open-elevation.com/api/v1/lookup?locations={lat},{lon}"
             ).json()["results"][0]["elevation"]
         )
 
