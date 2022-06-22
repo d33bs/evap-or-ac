@@ -4,9 +4,13 @@ import os
 from datetime import datetime
 from typing import Dict, List, Optional
 
-from noaa_sdk import NOAA
 import psychrolib
+import requests
+from noaa_sdk import NOAA
 from pyairnow import WebServiceAPI as airnow
+
+# set International System (SI) for psychrolib
+psychrolib.SetUnitSystem(psychrolib.SI)
 
 
 class EvapOrAC:
@@ -28,11 +32,20 @@ class EvapOrAC:
         self.noaa_avg_relhumidity = self.get_noaa_today_avg_value(
             item_name="relativeHumidity"
         )
-        self.avg_wet_bulb_temperature = self.get_avg_wet_bulb_temperature()
         self.noaa_avg_temperature = self.get_noaa_today_avg_value(
             item_name="temperature"
         )
+        self.avg_wet_bulb_temperature = self.get_avg_wet_bulb_temperature()
+        self.avg_evap_temp_achievable = self.get_avg_evap_temp_achievable()
         self.answer = self.get_answer()
+
+    @staticmethod
+    def to_fahrenheit(celsius):
+        """
+        Convert celsius to fahrenheit
+        """
+
+        return celsius * 9 / 5 + 32
 
     def get_answer(self) -> Dict:
         """
@@ -49,12 +62,29 @@ class EvapOrAC:
             }
 
         # check weather we have a temperature sometime today which is above
-        # or equal to 105, a temperature which will mean it's unlikely evap
-        # cooling will be effective
-        if len([x for x in self.noaa_weather if x["temperature"] >= 105]) > 0:
+        # or equal to 115, a temperature which will mean it's unlikely evap
+        # cooling will be effective.
+        if (
+            len(
+                [
+                    x
+                    for x in self.noaa_weather["temperature"]["values"]
+                    if self.to_fahrenheit(x["value"]) >= 115
+                ]
+            )
+            > 0
+        ):
             return {
                 "answer": "Air Conditioning",
-                "why": f"A daily temperature above 105 F was discovered in the weather forecast",
+                "why": f"A daily temperature above 115 F was discovered in the weather forecast",
+            }
+
+        # check whether the possible evaporative cooling temperature achievable
+        # will be above 75 degrees.
+        if self.to_fahrenheit(self.avg_evap_temp_achievable) > 75:
+            return {
+                "answer": "Air Conditioning",
+                "why": f"The average achievable evaporative cooler temperature is above 75 F.",
             }
 
         return {
@@ -81,6 +111,8 @@ class EvapOrAC:
 
         https://github.com/Jorl17/open-elevation/blob/master/docs/api.md
         """
+
+        # referential lat and lon via aqi lookup
         lat = self.aqi[0]["Latitude"]
         lon = self.aqi[0]["Longitude"]
 
@@ -98,15 +130,13 @@ class EvapOrAC:
         """
 
         # in hPa
-        p = 101325 * (
-            1 - ((0.00976 * self.altitude) / 288.16)
-            ^ ((9.80665 * 0.02896968)) / (8.314462618 * 0.00976)
+        p = 101325 * pow(
+            (1 - ((0.00976 * self.altitude) / 288.16)),
+            ((9.80665 * 0.02896968)) / (8.314462618 * 0.00976),
         )
 
-        # to psi
-        psi = p * 0.014503773800722
-
-        return psi
+        # hPa to Pa conversion
+        return p * 100
 
     def get_noaa_weather(self, zipcode: str) -> List[Dict]:
         """
@@ -124,16 +154,18 @@ class EvapOrAC:
 
         today = datetime.today().strftime("%Y-%m-%d")
         vals = [
-            x["value"] for x in result[item_name]["values"] if today in x["validTime"]
+            x["value"]
+            for x in self.noaa_weather[item_name]["values"]
+            if today in x["validTime"]
         ]
         return sum(vals) / len(vals)
 
-    def get_avg_temp_drop_achievable(self) -> float:
+    def get_avg_evap_temp_achievable(self) -> float:
         """
-        Determine avg temp drop achievable given weather data.
+        Determine average evaporative cooling temperature achievable given weather data.
 
         Use the following algorithm:
-            SAT = e * (TDB - TWB) - (TDB)
+            SAT = (TDB) - (e * (TDB - TWB))
 
         Based on:
             e = (TDB - SAT) / (TDB - TWB)
@@ -148,7 +180,10 @@ class EvapOrAC:
         Source: https://basc.pnnl.gov/resource-guides/evaporative-cooling-systems#edit-group-description
         """
 
-        return
+        # note: we assume a 90% efficiency for the evaporative cooling unit
+        return (self.noaa_avg_temperature) - (
+            0.9 * (self.noaa_avg_temperature - self.avg_wet_bulb_temperature)
+        )
 
     def get_avg_wet_bulb_temperature(self) -> float:
         """
@@ -157,6 +192,6 @@ class EvapOrAC:
 
         return psychrolib.GetTWetBulbFromRelHum(
             TDryBulb=self.noaa_avg_temperature,
-            RelHum=self.noaa_avg_relhumidity,
+            RelHum=self.noaa_avg_relhumidity / 100,
             Pressure=self.atmospheric_pressure,
         )
